@@ -4,9 +4,13 @@ export PATH="/usr/local/bin:/usr/bin:/bin:/home/linuxbrew/.linuxbrew/bin:/usr/lo
 function autocommit() {
     local interval="${1:-60}"
     while [ 1 ]; do
-        git add . >> .git/autocommit.log                                  \
-            && git commit -m "Autocommit $(date)" >> .git/autocommit.log  \
-            && git push origin work
+        D="$(date)"
+        L="$PWD/.git/autocommit.log"
+        echo "$D" &>> "$L"
+        git add .                            &>> "$L"  \
+            && git commit -m "Autocommit $D" &>> "$L"  \
+            && git push origin work          &>> "$L"
+        echo -e '\n--------------------------------------------------------------------------------\n' >> "$L"
         sleep $interval
     done
 }
