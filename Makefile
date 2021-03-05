@@ -173,10 +173,12 @@ UPROGS=\
 	_wc\
 	_zombie\
 	_hello\
+	_uniq\
 
 TXTFILES=\
 	test.sh\
-	example.txt\
+	ex1.txt\
+	ex2.txt\
 
 fs.img: mkfs README $(TXTFILES) $(UPROGS)
 	./mkfs fs.img README $(TXTFILES) $(UPROGS)
