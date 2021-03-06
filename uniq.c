@@ -26,10 +26,18 @@ typedef struct Cache_s {
     int mark;
 } Cache;
 
+typedef struct Config_s {
+    short countPfx;
+    short repeatsOnly;
+    short ignoreCase;
+    char *fn;
+    int fd;
+} Config;
+
 void debug(char msg[]) { if(DEBUG) printf(2, "DEBUG: %s\n", msg); }
 
 void __printCache(Cache *cache, char name[]) {
-    if(NULL == cache) {
+    if(!cache) {
         debug("*(0x0) = { }");
         return;
     }
@@ -170,7 +178,7 @@ Cache* dumpCache(Cache *cache, int destFd) {
     return (*(cacheHead->tail) = *(cacheHead->head) = cacheHead);
 }
 
-void uniq(const int fd) {
+void uniq(Config cfg) {
 
     debug("entering `uniq`");
 
@@ -185,7 +193,7 @@ void uniq(const int fd) {
     while(1) {
         debug("in while");
 
-        n = read(fd, buf, BUF_SIZE);
+        n = read(cfg.fd, buf, BUF_SIZE);
         if(n) {
             bufEndChar = buf[n-1];
         } else {
@@ -201,6 +209,9 @@ void uniq(const int fd) {
             debug("----(I)");
 
             currChar = buf[i];
+            if(cfg.ignoreCase && currChar >= 'A' && currChar <= 'Z') {
+                currChar += ('a' - 'A');
+            }
 
             // 1. `prevLine` doesn't contain a full line
             if(fillPrevLine) {
@@ -248,22 +259,29 @@ void uniq(const int fd) {
                 else if(prevChar != '\n' && currChar == '\n') {
                     debug("------------(I-2-B)");
 
-                    emptyCache = dumpCache(prevLine, 1);
-                    prevLine = currLine;
-                    currLine = emptyCache;
-                    emptyCache = NULL;
+                    if(cfg.repeatsOnly) {
 
+                    } else {
+                        emptyCache = dumpCache(prevLine, 1);
+                        prevLine = currLine;
+                        currLine = emptyCache;
+                        emptyCache = NULL;
+                    }
                 }
                 // C. full previous line identical to full current line
                 else if(currChar == '\n' && prevChar == '\n') {
                     debug("------------(I-2-C)");
 
-                    // reset prevLine position to head
-                    prevLine->mark = 0;
-                    prevLine = *(prevLine->head);
+                    if(cfg.repeatsOnly) {
 
-                    // erase currLine and reset position to head
-                    currLine = dumpCache(currLine, -1);
+                    } else {
+                        // reset prevLine position to head
+                        prevLine->mark = 0;
+                        prevLine = *(prevLine->head);
+
+                        // erase currLine and reset position to head
+                        currLine = dumpCache(currLine, -1);
+                    }
 
                 }
                 // D. previous line is equal to current line up to and not
@@ -274,11 +292,15 @@ void uniq(const int fd) {
                     debugCache(prevLine, "prevLine");
                     debugCache(currLine, "currLine");
 
-                    emptyCache = dumpCache(prevLine, 1);
-                    prevLine = currLine;
-                    currLine = emptyCache;
-                    emptyCache = NULL;
-                    fillPrevLine = 1;
+                    if(cfg.repeatsOnly) {
+
+                    } else {
+                        emptyCache = dumpCache(prevLine, 1);
+                        prevLine = currLine;
+                        currLine = emptyCache;
+                        emptyCache = NULL;
+                        fillPrevLine = 1;
+                    }
 
                 }
 
@@ -306,19 +328,49 @@ void uniq(const int fd) {
     disposeCache(prevLine);
 }
 
+Config parseCliConfig(int argc, char *argv[]) {
+    Config cfg = {
+        .countPfx = 0,
+        .repeatsOnly = 0,
+        .ignoreCase = 0,
+        .fn = NULL,
+        .fd = 0
+    };
+    int i, len;
+    for(i = 1; i < argc; ++i) {
+        char s[] = argv[i];
+        len = strlen(s);
+        if(len == 2 && '-' == s[0]) {
+            char c = s[1];
+            switch(c) {
+                case 'c':  // prefix lines by the number of occurrences
+                    cfg.countPfx = 1;
+                    break;
+                case 'd':  // only print duplicate lines
+                    cfg.repeatsOnly = 1;
+                    break;
+                case 'i':  // ignore differences in case when comparing
+                    cfg.ignoreCase = 1;
+                    break;
+                default:
+                    printf(2, "Unknown argument '-%c'\n", c);
+                    exit();
+            }
+        } else {
+            cfg.fn = (argv + i);
+        }
+    }
+    return cfg;
+}
+
 int main(int argc, char *argv[]) {
-    if(argc <= 1) {
-        uniq(0);
+    Config cfg = parseCliConfig(argc, argv);
+    if(cfg.fn) cfg.fd = open(cfg.fn, 0);
+    if(cfg.fd < 0) {
+        printf(2, "uniq: cannot open \"%s\"\n", cfg.fn);
         exit();
     }
-    int fd, i;
-    for(i = 1; i < argc; ++i) {
-        if((fd = open(argv[i], 0)) < 0) {
-            printf(2, "uniq: cannot open \"%s\"\n", argv[i]);
-            exit();
-        }
-        uniq(fd);
-        close(fd);
-    }
+    uniq(cfg);
+    if(cfg.fn) close(cfg.fd);
     exit();
 }
