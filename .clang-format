@@ -1,0 +1,9 @@
+BasedOnStyle: LLVM
+---
+Language: Cpp
+IndentWidth: 4
+# Force pointers to the type for C++.
+DerivePointerAlignment: false
+PointerAlignment: Left
+ColumnLimit: 120
+SpaceBeforeParens: Never

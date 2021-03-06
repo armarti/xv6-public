@@ -72,7 +72,6 @@ endif
 CC = $(TOOLPREFIX)gcc
 AS = $(TOOLPREFIX)gas
 LD = $(TOOLPREFIX)ld
-# LD = $(TOOLPREFIX)ld≈
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 #CFLAGS = -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer
@@ -174,14 +173,10 @@ UPROGS=\
 	_wc\
 	_zombie\
 	_hello\
-	_uniq\
 
 TXTFILES=\
 	test.sh\
-	ex1.txt\
-	ex2.txt\
-	ex3.txt\
-	ex4.txt\
+	example.txt\
 
 fs.img: mkfs README $(TXTFILES) $(UPROGS)
 	./mkfs fs.img README $(TXTFILES) $(UPROGS)
