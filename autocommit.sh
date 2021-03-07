@@ -6,10 +6,10 @@ function autocommit() {
     while [ 1 ]; do
         D="$(date)"
         L="$PWD/.git/autocommit.log"
-        echo "$D" &>> "$L"
-        git add .                            &>> "$L"  \
-            && git commit -m "Autocommit $D" &>> "$L"  \
-            && git push origin $(git branch --show-current)          &>> "$L"
+        echo "$D" 2>&1 >> "$L"
+        git add .                                            2>&1 >> "$L"  \
+            && git commit -m "Autocommit $D"                 2>&1 >> "$L"  \
+            && git push origin $(git branch --show-current)  2>&1 >> "$L"
         echo -e '\n--------------------------------------------------------------------------------\n' >> "$L"
         sleep $interval
     done

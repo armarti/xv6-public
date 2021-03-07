@@ -15,8 +15,6 @@
 #define DEBUGX 0
 #endif
 
-char LAST_WRITE_CHAR = '\0';
-
 typedef struct Cache_s {
     struct Cache_s *next;
     struct Cache_s **head;
@@ -30,7 +28,6 @@ typedef struct Config_s {
     short countPfx;
     short repeatsOnly;
     short ignoreCase;
-    char *fn;
     int fd;
 } Config;
 
@@ -168,7 +165,6 @@ Cache* dumpCache(Cache *cache, int destFd) {
                 printf(2,  "Write error");
                 exit();
             }
-            LAST_WRITE_CHAR = currNode->buf[(currNode->len)-1];
         }
         currNode->len = currNode->mark = 0;
         if(currNode == cacheTail) break;
@@ -178,7 +174,7 @@ Cache* dumpCache(Cache *cache, int destFd) {
     return (*(cacheHead->tail) = *(cacheHead->head) = cacheHead);
 }
 
-void uniq(Config cfg) {
+void uniq(const Config *cfg) {
 
     debug("entering `uniq`");
 
@@ -193,7 +189,7 @@ void uniq(Config cfg) {
     while(1) {
         debug("in while");
 
-        n = read(cfg.fd, buf, BUF_SIZE);
+        n = read(cfg->fd, buf, BUF_SIZE);
         if(n) {
             bufEndChar = buf[n-1];
         } else {
@@ -209,7 +205,7 @@ void uniq(Config cfg) {
             debug("----(I)");
 
             currChar = buf[i];
-            if(cfg.ignoreCase && currChar >= 'A' && currChar <= 'Z') {
+            if(cfg->ignoreCase && currChar >= 'A' && currChar <= 'Z') {
                 currChar += ('a' - 'A');
             }
 
@@ -259,7 +255,7 @@ void uniq(Config cfg) {
                 else if(prevChar != '\n' && currChar == '\n') {
                     debug("------------(I-2-B)");
 
-                    if(cfg.repeatsOnly) {
+                    if(cfg->repeatsOnly) {
 
                     } else {
                         emptyCache = dumpCache(prevLine, 1);
@@ -272,7 +268,7 @@ void uniq(Config cfg) {
                 else if(currChar == '\n' && prevChar == '\n') {
                     debug("------------(I-2-C)");
 
-                    if(cfg.repeatsOnly) {
+                    if(cfg->repeatsOnly) {
 
                     } else {
                         // reset prevLine position to head
@@ -292,7 +288,7 @@ void uniq(Config cfg) {
                     debugCache(prevLine, "prevLine");
                     debugCache(currLine, "currLine");
 
-                    if(cfg.repeatsOnly) {
+                    if(cfg->repeatsOnly) {
 
                     } else {
                         emptyCache = dumpCache(prevLine, 1);
@@ -320,28 +316,23 @@ void uniq(Config cfg) {
     // if(!fillPrevLine) currLine = dumpCache(currLine, 1);
     currLine = dumpCache(currLine, 1);
 
-    // // account for file not ending in newline
-    // if(LAST_WRITE_CHAR != '\n') write(1, "\n", 1);
-
-    // cleanup
+        // cleanup
     disposeCache(currLine);
     disposeCache(prevLine);
 }
 
-Config parseCliConfig(int argc, char *argv[]) {
+int main(int argc, char *argv[]) {
     Config cfg = {
         .countPfx = 0,
         .repeatsOnly = 0,
         .ignoreCase = 0,
-        .fn = NULL,
         .fd = 0
     };
     int i, len;
     for(i = 1; i < argc; ++i) {
-        char s[] = argv[i];
-        len = strlen(s);
-        if(len == 2 && '-' == s[0]) {
-            char c = s[1];
+        len = strlen(argv[i]);
+        if(len == 2 && '-' == argv[i][0]) {
+            char c = argv[i][1];
             switch(c) {
                 case 'c':  // prefix lines by the number of occurrences
                     cfg.countPfx = 1;
@@ -357,20 +348,13 @@ Config parseCliConfig(int argc, char *argv[]) {
                     exit();
             }
         } else {
-            cfg.fn = (argv + i);
+            if(0 > (cfg.fd = open(argv[i], 0))) {
+                printf(2, "uniq: cannot open \"%s\"\n", argv[i]);
+                exit();
+            }
         }
     }
-    return cfg;
-}
-
-int main(int argc, char *argv[]) {
-    Config cfg = parseCliConfig(argc, argv);
-    if(cfg.fn) cfg.fd = open(cfg.fn, 0);
-    if(cfg.fd < 0) {
-        printf(2, "uniq: cannot open \"%s\"\n", cfg.fn);
-        exit();
-    }
-    uniq(cfg);
-    if(cfg.fn) close(cfg.fd);
+    uniq(&cfg);
+    if(cfg.fd) close(cfg.fd);
     exit();
 }
